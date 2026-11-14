@@ -152,6 +152,27 @@ APP_OUT=/tmp/Test.app NO_DMG=1 ./scripts/build.sh     # 只构建，不打包
 - API Key 存在文件里，还没进钥匙串。
 - ⌘9 暂时不能改。
 
+## 路线图
+
+NekoIntelligence 只恢复了**写作工具**。Apple 智能的其他功能要么依赖 arm64e-only 的扩展，要么依赖 Apple 的端上模型，远超一个人能完成的工作量。这个版本算是抛砖引玉，欢迎接手，大致按工作量从小到大：
+
+**小**
+- [ ] API Key 存进钥匙串，不再放在 `providers.json`
+- [ ] ⌘9 快捷键可以自定义
+- [ ] 流式输出，缩短面板内指令 10–20 秒的等待
+
+**中**
+- [ ] 让备忘录、邮件等其他 App 自带的「写作工具」入口也亮起来（在那些 App 里同样绕过可用性判定）
+- [ ] 给宿主程序和脚本加单元测试与 CI
+
+**大**
+- [ ] 写一个脚本，针对新 macOS 版本自动寻找补丁偏移
+- [ ] 写作工具以外的功能（Image Playground、Genmoji、新 Siri、通知与邮件摘要）。它们依赖 arm64e-only 扩展或 Apple 的生成会话服务，目前在 Intel 上做不到。
+
+## 参与贡献
+
+欢迎提 Issue 和 Pull Request。反馈问题时请附上 macOS 版本号（`sw_vers`）和自检结果（「诊断」→「运行自检」，或 `doctor.sh`）。如果你找到了其他 macOS 版本的补丁偏移，欢迎向 `scripts/patch_xpc.py` 提 PR，并注明测试过的系统版本号。
+
 ## 致谢
 
 - 界面使用 [apple-design-skill](https://github.com/dickwu/apple-design-skill) 审查，这是一个基于 Apple 人机界面指南的设计审查工具。

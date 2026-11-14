@@ -152,6 +152,27 @@ The repository contains **no Apple binaries**. At build time the script copies `
 - API keys are stored in a file, not the Keychain.
 - ⌘9 can't be changed yet.
 
+## Roadmap
+
+NekoIntelligence brings back **Writing Tools** only. The rest of Apple Intelligence depends on arm64e-only extensions or Apple's on-device models, so it is far beyond a one-person project. This release is meant as a starting point. Contributions are welcome, roughly from small to large:
+
+**Small**
+- [ ] Store API keys in the Keychain instead of `providers.json`
+- [ ] Let people change the ⌘9 hotkey
+- [ ] Stream responses to cut the 10–20 s wait for in-panel instructions
+
+**Medium**
+- [ ] Light up the built-in Writing Tools entry in other apps (Notes, Mail, …) by bypassing the availability check there too
+- [ ] Unit tests and CI for the host app and scripts
+
+**Large**
+- [ ] A script that finds the patch offsets automatically for new macOS versions
+- [ ] Anything beyond Writing Tools (Image Playground, Genmoji, the new Siri, notification and Mail summaries). These need arm64e-only extensions or Apple's generative session services and are out of reach on Intel today.
+
+## Contributing
+
+Issues and pull requests are welcome. When reporting a problem, include your macOS build (`sw_vers`) and the output of the self-check (Diagnostics → Run Self-Check, or `doctor.sh`). If you find offsets for another macOS version, open a pull request against `scripts/patch_xpc.py` with the build number you tested.
+
 ## Acknowledgements
 
 - The interface was reviewed with [apple-design-skill](https://github.com/dickwu/apple-design-skill), a reviewer grounded in Apple's Human Interface Guidelines.
