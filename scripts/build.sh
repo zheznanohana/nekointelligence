@@ -93,7 +93,7 @@ PY
 cp "$HERE/scripts/doctor.sh" "$HERE/scripts/uninstall.sh" "$HERE/scripts/probe_latency.py" \
    "$HERE/scripts/patch_footer.py" "$HERE/scripts/vs.entitlements" "$APP/Contents/Resources/support/"
 [ -f "$HERE/README.md" ] && cp "$HERE/README.md" "$APP/Contents/Resources/support/README.md"
-cp "$HERE/README.md" "$APP/Contents/Resources/support/使用说明.md" 2>/dev/null || true
+cp "$HERE/README.zh-CN.md" "$APP/Contents/Resources/support/使用说明.md" 2>/dev/null || true
 [ -f "$HERE/assets/AppIcon.icns" ] && cp "$HERE/assets/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
 printf '%s\n' "$APP" > "$APP/Contents/Resources/install-path.txt"
 [ -z "${APP_OUT:-}" ] && { mkdir -p "$SUP"; printf '%s\n' "$APP" > "$SUP/install-path.txt"; }

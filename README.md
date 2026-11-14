@@ -1,109 +1,164 @@
-# Apple 智能（Intel）· 非官方本地前端 + 自带 API 后端
+<p align="center">
+  <img src="docs/icon.png" width="128" height="128" alt="NekoIntelligence icon">
+</p>
 
-在 **Intel Mac（黑苹果 / 老款白苹果）** 上把 Apple 的写作工具面板点亮，并把它的生成请求
-接到**你自己的 API**（千问 / OpenAI / OpenRouter / DeepSeek / 本地 LiteLLM、new-api、Ollama……）。
+<h1 align="center">NekoIntelligence</h1>
 
-> 这不是 Apple 的软件，也不是「越狱工具」。它不修改任何系统文件，全部逻辑都在
-> `/Applications` 里的一个 app 和 `~/Library/Application Support/AppleIntel` 里。
-> 卸载 = 删掉这两个东西。
+<p align="center">
+  Apple's native <b>Writing Tools</b> on Intel Macs, powered by <b>your own</b> OpenAI-compatible API.
+</p>
 
-![面板](docs/panel.png)
+<p align="center">
+  <a href="https://github.com/zheznanohana/nekointelligence/releases/latest"><img src="https://img.shields.io/github/v/release/zheznanohana/nekointelligence?style=flat-square" alt="Release"></a>
+  <a href="https://github.com/zheznanohana/nekointelligence/releases"><img src="https://img.shields.io/github/downloads/zheznanohana/nekointelligence/total?style=flat-square" alt="Downloads"></a>
+  <img src="https://img.shields.io/badge/platform-macOS%20(Intel)-blue?style=flat-square" alt="Platform">
+  <img src="https://img.shields.io/badge/tested-macOS%2026.7.3-fa4e49?style=flat-square" alt="Tested on macOS 26.7.3">
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/zheznanohana/nekointelligence?style=flat-square" alt="License"></a>
+</p>
 
-## 它能做什么
+<p align="center">
+  <b>English</b> · <a href="README.zh-CN.md">简体中文</a>
+</p>
 
-| 能力 | 说明 |
+<p align="center">
+  <img src="docs/panel.png" width="300" alt="Apple's Writing Tools panel running on an Intel Mac">
+</p>
+
+> [!WARNING]
+> NekoIntelligence requires **SIP and AMFI to be disabled**. It loads a patched copy of a system XPC service with private entitlements, which a stock, fully protected macOS will refuse to run. Only use it on a machine where you understand and accept that trade-off.
+
+> [!NOTE]
+> This is an unofficial project and is not affiliated with Apple. It modifies **no system files**: everything lives in one app in `/Applications` and in `~/Library/Application Support/AppleIntel`.
+
+## Features
+
+- **The real panel, not a look-alike.** Uses the system's own `WritingToolsViewService` (an in-app copy with three byte patches), so it looks and behaves exactly like Apple Intelligence.
+- **All 10 actions.** Proofread and Rewrite go through Apple's native path. Friendly, Professional, Concise, Summary, Key Points, List, Table and Compose normally need Apple's on-device models; here they are turned into instructions for your API.
+- **Describe your change.** Type any instruction at the top of the panel, such as "translate to English", and press Return.
+- **Works in every app.** Select text anywhere and press **⌘9**. The panel appears in place and the result is written back.
+- **Services menu.** Right-click → Services → rewrite, summarize, translate or proofread in place in about a second, without opening the panel.
+- **Bring your own model.** Any OpenAI-compatible endpoint works. Presets: Qwen Token Plan, OpenAI, OpenRouter, DeepSeek, Ollama, LiteLLM, new-api / one-api.
+- **A native Mac app.** One window with an App Store-style sidebar (Writing Tools, Shortcuts, Providers, General, Diagnostics), built against Apple's Human Interface Guidelines, in light and dark mode.
+- **Undo and transparency.** Undo the last rewrite (up to 5 steps). The app always shows which provider and model produced the text.
+- **Self-check.** The Diagnostics pane checks patches, injection, Services registration and your API in one click.
+
+<p align="center">
+  <img src="docs/providers.png" width="49%" alt="Providers pane">
+  <img src="docs/shortcuts.png" width="49%" alt="Shortcuts pane">
+</p>
+
+## Requirements
+
+| | |
 | --- | --- |
-| Apple 原生写作工具面板 | 真正的 `NSPopoverWindow` + `WritingToolsViewService`，不是仿制 UI |
-| 10 个动作全部可用 | Proofread / Rewrite / Friendly / Professional / Concise / Summary / Key Points / List / Table / Compose…（后 8 项原本依赖 Apple 端上模型，这里用「同一面板 + 我们自己发指令」绕过） |
-| 自定义指令框 | 面板顶部「Describe your change」里打任意指令（如「翻译成英文」），回车即执行 |
-| 全局取词 | 任意 App 里选中文字 → **⌘9** → 面板浮出 → 点动作 → 结果原地写回 |
-| 系统服务 | 右键 → 服务 → 直接改写 / 摘要 / 翻译 / 校对选中文字（一行内完成，1 秒级） |
-| 撤销 | 菜单栏「撤销上一次改写」，或直接 ⌘Z |
-| 结果自动复制 | 改写完成后正文同时进剪贴板 |
-| 单窗口主界面 | App Store 式侧边栏：**写作工具**（编辑区 + 面板）/ **快捷操作** / **服务商**（多供应商、预设、连接测试）/ **通用**（登录时打开、自动复制、语言、辅助功能状态）/ **诊断**（自检结果、请求日志） |
+| Mac | Intel (x86_64). Hackintoshes and older Intel Macs both work. |
+| macOS | Tested on macOS 26.7.3 (25G342). Other versions may need new patch offsets. |
+| Security | SIP disabled (`csrutil disable`) and AMFI disabled (`amfi_get_out_of_my_way=0x1` in boot-args) |
+| API | Any OpenAI-compatible chat completions endpoint and its API key |
 
-## 快速开始（DMG）
+## Installation
 
-1. 双击 `Apple-Intelligence-Intel.dmg`，再双击里面的 App → 点「**安装**」：它会把自己复制到 `/Applications`、
-   从那里重新打开并推出磁盘映像（也可以手动拖进 `Applications`）。
-2. 如果提示无法验证开发者：**右键 → 打开**（本地 ad-hoc 签名，未做 Apple 公证）。
-3. 首次启动会请求「辅助功能」权限：系统设置 → 隐私与安全性 → 辅助功能 → 勾选它。
-   > 只用于读取任意 App 里的选中文字和写回结果，不联网上传。
-4. 打开 App → 侧边栏「服务商」（或 **⌘,**）→ 填 Base URL / API Key / 模型 → **测试连接** → 保存。
-5. 在任意编辑器里选中一段文字，按 **⌘9**。
+1. Download `NekoIntelligence-<version>.dmg` from the [latest release](https://github.com/zheznanohana/nekointelligence/releases/latest).
+2. Open the DMG, double-click the app and choose **Install**. It copies itself to `/Applications`, relaunches from there and ejects the disk image. Dragging it to Applications also works.
+3. If macOS says the developer can't be verified, right-click the app and choose **Open**. The app is ad-hoc signed, not notarized.
+4. When asked, enable the app in **System Settings → Privacy & Security → Accessibility**. This is only used to read the text you select in other apps and write the result back.
 
-## 从源码构建
+## Usage
+
+1. Open the app and go to **Providers** (⌘,). Pick a preset or add your own Base URL, API key and model, click **Test Connection**, then **Save**.
+2. In any app, select some text and press **⌘9**. Choose an action in the panel, or type an instruction and press Return.
+3. For one-step edits without the panel, right-click the selection → **Services** → *直接改写 / 直接摘要 / 直接翻译 / 直接校对选中文字* (rewrite / summarize / translate / proofread; these menu names are currently Chinese only).
+
+| Shortcut | Action |
+| --- | --- |
+| ⌘9 | Rewrite the selection in the front app |
+| ⌃⌥⌘W | Open Writing Tools with the clipboard text |
+| ⌥⌘Z | Undo the last rewrite |
+| ⌘, | Providers |
+| ⌘1 – ⌘5 | Switch sidebar panes |
+| ⌃⌘S | Show or hide the sidebar |
+
+The app opens at login by default. Turn this off in **General**. The interface language (中文 / English) is also there.
+
+## FAQ
+
+### The panel is gray, or nothing happens when I click an action
+
+Open **Diagnostics** and click **Run Self-Check**. The first failing item tells you what broke. After a macOS update the patch offsets may have moved, and the app needs to be rebuilt for the new version.
+
+### I enabled Accessibility, but the app still says "Not granted"
+
+macOS ties Accessibility approval to the app's code signature, and older copies of the app share the same bundle ID. Reset the entry and grant it again:
+
+```bash
+tccutil reset Accessibility com.local.appleintelligence.intel
+```
+
+Then reopen the app and enable it again when prompted.
+
+### Why do I need to disable SIP and AMFI?
+
+The panel comes from a copy of Apple's `WritingToolsViewService`. That copy is ad-hoc signed but needs Apple's private entitlements, and our libraries are injected into it with `DYLD_INSERT_LIBRARIES`. AMFI blocks both. Keep in mind that disabling AMFI also removes an important protection for the rest of the system.
+
+### Does it work on Apple Silicon?
+
+Probably not. The three patch offsets target the x86_64 slice only. You can look for the arm64 equivalents yourself with Ghidra or a similar tool.
+
+### Are Image Playground, the new Siri, or the Apple Intelligence settings pane supported?
+
+No. Their UI runs in arm64e-only extensions that Intel Macs can't load.
+
+### Where are my API keys stored?
+
+In `~/Library/Application Support/AppleIntel/providers.json` with permissions `0600`, on your Mac only. They are not in the Keychain yet.
+
+## Uninstall
+
+```bash
+bash ~/Library/Application\ Support/AppleIntel/uninstall.sh
+```
+
+This removes the app, the login item, the support folder, Services registration and temporary files. Pass `--keep-data` to keep your configuration and logs, or `--check` to see what is installed without removing anything.
+
+## Building from source
+
+Requires the Xcode Command Line Tools (`clang`), `python3` and macOS 15 or later.
 
 ```bash
 git clone https://github.com/zheznanohana/nekointelligence.git && cd nekointelligence
-./scripts/build.sh                 # 生成 /Applications/…app 和 dist/*.dmg
-APP_OUT=/tmp/Test.app NO_DMG=1 ./scripts/build.sh   # 只构建，不打包
+./scripts/build.sh                                    # installs to /Applications and creates dist/*.dmg
+APP_OUT=/tmp/Test.app NO_DMG=1 ./scripts/build.sh     # build only, no DMG
 ```
 
-构建需要：Xcode Command Line Tools（clang）、python3、macOS 15+。
-**仓库不包含任何 Apple 二进制**：构建时从本机 `/System/.../WritingToolsViewService.xpc`
-复制一份到 app bundle 内，只对这份副本打字节补丁。
+The repository contains **no Apple binaries**. At build time the script copies `WritingToolsViewService.xpc` from your own system and patches only that copy.
 
-## 原理（三句话）
+## How it works
 
-1. Apple 的写作工具由 `WritingToolsUI.framework` 提供给所有 `NSTextView` 应用，但每个进程
-   自己判断「本机是否支持生成模型」；Intel 上这个判断恒为 false，所以面板永远是灰的。
-2. 我们把系统的 `WritingToolsViewService.xpc` 复制进自己的 app bundle（这样可以用
-   `XPCService.EnvironmentVariables.DYLD_INSERT_LIBRARIES` 注入自己的库），打三处字节补丁让
-   可用性判定通过，再用一个 `vsstub.dylib` 拦下「ViewService → textcomposerd」的 XPC 代理，
-   用我们自己的供应商生成结果。
-3. 宿主进程里跑一个 unix socket 中继（`GMBridge`），把 `{system,user}` 变成任意
-   OpenAI 兼容的 HTTPS 请求；因此换后端只需要在「服务商」里改一行 Base URL。
+1. `WritingToolsUI.framework` provides Writing Tools to every `NSTextView` app, but each process first checks whether the Mac supports generative models. On Intel that check always fails, so the panel stays gray.
+2. NekoIntelligence copies the system `WritingToolsViewService.xpc` into its own bundle, so it can inject libraries through `XPCService.EnvironmentVariables.DYLD_INSERT_LIBRARIES`. Three byte patches make the availability checks pass, and `vsstub.dylib` intercepts the ViewService → `textcomposerd` XPC proxy to answer with your provider.
+3. A Unix-socket relay inside the host app (`GMBridge`) turns `{system, user}` into an OpenAI-compatible HTTPS request. Switching backends only takes a new Base URL.
 
-## 界面
+| Path | What it is |
+| --- | --- |
+| `src/host/AIHost.m` | Host app: text capture, Services, menus, hotkeys |
+| `src/host/GMShell.m` | The single-window interface |
+| `src/host/GMBridge.m` | The relay to your API |
+| `src/host/GMSetup.m` | Self-repair, self-install, login item |
+| `src/inject/` | Libraries injected into the ViewService |
+| `scripts/` | Build, patch, self-check and uninstall scripts |
 
-主窗口是一个标准 `NSSplitViewController`：左侧系统侧边栏（两组：写作 / 设置），右侧内容，
-统一工具栏放当前页面的动作（写作工具、撤销改写），每个工具栏动作在菜单栏「写作」里都有对应项；
-**⌘1–⌘5** 切换侧边栏项，**⌃⌘S** 显示/隐藏侧边栏。设计按 Apple HIG 审过
-（[apple-design skill](https://github.com/dickwu/apple-design-skill)），全部使用语义色，跟随浅色/深色。
+## Known limitations
 
-源码分布：`src/host/AIHost.m`（宿主、取词、服务、菜单）、`src/host/GMShell.m`（单窗口界面）、
-`src/host/GMBridge.m`（中继）、`src/host/GMSetup.m`（自愈安装）、`src/inject/*`（注入 ViewService 的库）。
+- Patch offsets are verified only on macOS 26.7.3 (25G342).
+- Instructions typed in the panel and the 8 preset actions apply only after the upstream reply (10–20 s in testing). There is no streaming.
+- API keys are stored in a file, not the Keychain.
+- ⌘9 can't be changed yet.
+- The English interface is incomplete. Some messages are still in Chinese.
 
-## 兼容的后端
+## Acknowledgements
 
-任何 OpenAI 兼容接口都可以，例如：
+- The interface was reviewed with [apple-design-skill](https://github.com/dickwu/apple-design-skill), a reviewer grounded in Apple's Human Interface Guidelines.
 
-- 千问 Token Plan：`https://token-plan.cn-beijing.maas.aliyuncs.com` + `/compatible-mode/v1/chat/completions`
-- OpenAI：`https://api.openai.com` + `/v1/chat/completions`
-- OpenRouter / DeepSeek / Moonshot / 智谱 …
-- 本地网关：**LiteLLM**（:4000）、**new-api / one-api**（:3000）、**Ollama**（:11434）、Bifrost
-  —— 管理界面「预设…」里已经内置了这些地址，选一个填 Key 即可。
+## License
 
-> 想要「多 API 兼容层」但不想自己写：直接跑 `new-api`（Go 单文件 + SQLite + Web UI）
-> 或 `Bifrost`，然后把这里的 Base URL 指过去。本 App 只需要一个 OpenAI 兼容端点。
-
-## 系统要求与限制
-
-- **需要关闭 SIP 与 AMFI**（`csrutil disable` + `amfi_get_out_of_my_way=1`）。原因：整条路线依赖
-  `DYLD_INSERT_LIBRARIES` 注入一个带 Apple 私有 entitlements 的 XPC 服务副本。
-- **Intel 优先**。Apple Silicon 上 `WritingToolsViewService` 会走 arm64 切片，本仓库的
-  三处补丁偏移只针对 x86_64 切片，因此 AS 上大概率仍是灰面板（可以自己用 REA/Ghidra 找偏移）。
-- 系统更新可能重建 dyld 共享缓存 / 更新系统组件，补丁偏移需要重新核对；
-  `scripts/doctor.sh` 的第一个失败项会告诉你哪里断了。
-- 面板底部原本的 Apple 免责文案被替换为 `Powered by Qwen · local bridge (unofficial)`。
-- 「设置」按 HIG 本应是独立窗口；这里按「一个窗口」的需求合进了主窗口侧边栏（⌘, 直达「服务商」）。
-- Image Playground / 新 Siri / 系统设置里的 Apple 智能面板**不在支持范围**：它们的 UI 跑在
-  `arm64e-only` 的 ExtensionKit 扩展里，Intel 无法加载。
-
-## 自检与卸载
-
-```bash
-bash ~/Library/Application\ Support/AppleIntel/doctor.sh          # 14 项检查（App 里「诊断」页同样可以跑）
-bash ~/Library/Application\ Support/AppleIntel/doctor.sh --fix    # 能修的自动修
-bash ~/Library/Application\ Support/AppleIntel/uninstall.sh       # 卸载
-```
-
-## 免责声明
-
-- 与 Apple 无关。Apple、Apple Intelligence、Writing Tools 是 Apple Inc. 的商标。
-- 仅在你自己的机器上使用；请遵守你所用 API 服务商的条款。
-- 本仓库不含 Apple 二进制，也不分发任何密钥。
-- 修改系统组件的可用性判定属于非官方行为，系统更新后可能失效。
-
-MIT License.
+[MIT](LICENSE). Apple, Apple Intelligence and Writing Tools are trademarks of Apple Inc. Use this only on your own Mac and follow your API provider's terms.
