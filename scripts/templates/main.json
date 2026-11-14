@@ -1,0 +1,95 @@
+{
+  "CFBundleDisplayName": "Apple 智能（Intel）",
+  "CFBundleExecutable": "AppleIntelligenceIntel",
+  "CFBundleIdentifier": "com.local.appleintelligence.intel",
+  "CFBundleName": "Apple Intelligence (Intel)",
+  "CFBundlePackageType": "APPL",
+  "CFBundleShortVersionString": "1.3",
+  "CFBundleVersion": "4",
+  "LSMinimumSystemVersion": "13.0",
+  "NSHighResolutionCapable": true,
+  "NSPrincipalClass": "NSApplication",
+  "NSServices": [
+    {
+      "NSMenuItem": {
+        "default": "用 Apple 智能写作"
+      },
+      "NSMessage": "handleServiceText",
+      "NSPortName": "AppleIntelligenceIntel",
+      "NSReturnTypes": [],
+      "NSSendTypes": [
+        "NSStringPboardType",
+        "public.utf8-plain-text"
+      ]
+    },
+    {
+      "NSMenuItem": {
+        "default": "直接改写选中文字"
+      },
+      "NSMessage": "handleServiceRewriteInPlace",
+      "NSPortName": "AppleIntelligenceIntel",
+      "NSReturnTypes": [
+        "public.utf8-plain-text"
+      ],
+      "NSSendTypes": [
+        "NSStringPboardType",
+        "public.utf8-plain-text"
+      ]
+    },
+    {
+      "NSMenuItem": {
+        "default": "直接摘要选中文字"
+      },
+      "NSMessage": "handleServiceSummarizeInPlace",
+      "NSPortName": "AppleIntelligenceIntel",
+      "NSReturnTypes": [
+        "public.utf8-plain-text"
+      ],
+      "NSSendTypes": [
+        "NSStringPboardType",
+        "public.utf8-plain-text"
+      ]
+    },
+    {
+      "NSMenuItem": {
+        "default": "直接改写并复制结果"
+      },
+      "NSMessage": "handleServiceRewriteToClipboard",
+      "NSPortName": "AppleIntelligenceIntel",
+      "NSReturnTypes": [],
+      "NSSendTypes": [
+        "NSStringPboardType",
+        "public.utf8-plain-text"
+      ]
+    },
+    {
+      "NSMenuItem": {
+        "default": "直接翻译选中文字"
+      },
+      "NSMessage": "handleServiceTranslateInPlace",
+      "NSPortName": "AppleIntelligenceIntel",
+      "NSReturnTypes": [
+        "public.utf8-plain-text"
+      ],
+      "NSSendTypes": [
+        "NSStringPboardType",
+        "public.utf8-plain-text"
+      ]
+    },
+    {
+      "NSMenuItem": {
+        "default": "直接校对选中文字"
+      },
+      "NSMessage": "handleServiceProofreadInPlace",
+      "NSPortName": "AppleIntelligenceIntel",
+      "NSReturnTypes": [
+        "public.utf8-plain-text"
+      ],
+      "NSSendTypes": [
+        "NSStringPboardType",
+        "public.utf8-plain-text"
+      ]
+    }
+  ],
+  "CFBundleIconFile": "AppIcon"
+}

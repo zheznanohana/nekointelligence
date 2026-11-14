@@ -1,0 +1,11 @@
+dist/
+build/
+*.dmg
+*.app/
+*.dylib
+*.o
+.DS_Store
+# 绝不提交密钥
+providers.json
+tp_cfg.json
+!scripts/templates/*.json
