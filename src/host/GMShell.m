@@ -644,13 +644,13 @@ static NSWindowStyleMask GMShellMask(void){
 
 static NSArray *GMPresets(void){
     return @[
-        @[@"千问 Token Plan", @"https://token-plan.cn-beijing.maas.aliyuncs.com", @"/compatible-mode/v1/chat/completions", @"qwen3.8-flash", @YES],
+        @[GMTr(@"千问 Token Plan"), @"https://token-plan.cn-beijing.maas.aliyuncs.com", @"/compatible-mode/v1/chat/completions", @"qwen3.8-flash", @YES],
         @[@"OpenAI", @"https://api.openai.com", @"/v1/chat/completions", @"gpt-4o-mini", @YES],
         @[@"OpenRouter", @"https://openrouter.ai/api", @"/v1/chat/completions", @"openai/gpt-4o-mini", @YES],
         @[@"DeepSeek", @"https://api.deepseek.com", @"/v1/chat/completions", @"deepseek-chat", @YES],
-        @[@"Ollama（本地）", @"http://127.0.0.1:11434", @"/v1/chat/completions", @"llama3.1", @NO],
-        @[@"LiteLLM（本地）", @"http://127.0.0.1:4000", @"/v1/chat/completions", @"gpt-4o-mini", @YES],
-        @[@"new-api / one-api（本地）", @"http://127.0.0.1:3000", @"/v1/chat/completions", @"gpt-4o-mini", @YES],
+        @[GMTr(@"Ollama（本地）"), @"http://127.0.0.1:11434", @"/v1/chat/completions", @"llama3.1", @NO],
+        @[GMTr(@"LiteLLM（本地）"), @"http://127.0.0.1:4000", @"/v1/chat/completions", @"gpt-4o-mini", @YES],
+        @[GMTr(@"new-api / one-api（本地）"), @"http://127.0.0.1:3000", @"/v1/chat/completions", @"gpt-4o-mini", @YES],
     ];
 }
 
@@ -1189,6 +1189,9 @@ static NSString *GMStripANSI(NSString *s){
         NSTask *t = [NSTask new];
         t.executableURL = [NSURL fileURLWithPath:@"/bin/bash"];
         t.arguments = @[script];
+        NSMutableDictionary *env = [NSProcessInfo.processInfo.environment mutableCopy];
+        env[@"GM_LANG"] = GMLangCode();
+        t.environment = env;
         NSPipe *pipe = [NSPipe pipe];
         t.standardOutput = pipe; t.standardError = pipe;
         NSString *out = nil;

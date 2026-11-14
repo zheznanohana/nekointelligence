@@ -8,6 +8,7 @@
 // 只在内容变化时才重签，避免每次启动都动签名。
 
 #import <Cocoa/Cocoa.h>
+#import "GMLang.h"
 #include <sys/stat.h>
 #include <unistd.h>
 #include <sys/mount.h>
@@ -149,6 +150,18 @@ void GMSetupEnsure(void){
             @try { [t launch]; [t waitUntilExit]; needSign = (t.terminationStatus != 0); }
             @catch (NSException *e) { needSign = YES; }
         }
+        {
+            NSString *marker = [SUSupport() stringByAppendingPathComponent:@".pbs-flushed"];
+            NSString *info = [app stringByAppendingPathComponent:@"Contents/Info.plist"];
+            NSDate *mi = [fm attributesOfItemAtPath:info error:NULL][NSFileModificationDate];
+            NSDate *mm = [fm attributesOfItemAtPath:marker error:NULL][NSFileModificationDate];
+            if (![app hasPrefix:@"/Volumes/"] && (!mm || (mi && [mi compare:mm] == NSOrderedDescending))) {
+                runTask(@"/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister", @[@"-f", app]);
+                runTask(@"/System/Library/CoreServices/pbs", @[@"-flush"]);
+                [@"" writeToFile:marker atomically:YES encoding:NSUTF8StringEncoding error:NULL];
+                slog(@"已刷新服务菜单缓存");
+            }
+        }
         ensureAutostartDefault();
         if (needSign) {
             if ([fm fileExistsAtPath:ent]) {
@@ -278,11 +291,11 @@ BOOL GMSetupInstallIfNeeded(void){
 
     [NSApp activateIgnoringOtherApps:YES];
     NSAlert *a = [NSAlert new];
-    a.messageText = @"安装到「应用程序」文件夹？";
-    a.informativeText = @"写作工具面板不能在磁盘映像里运行。安装后 App 会自动重新打开，并推出磁盘映像。";
+    a.messageText = GMTr(@"安装到「应用程序」文件夹？");
+    a.informativeText = GMTr(@"写作工具面板不能在磁盘映像里运行。安装后 App 会自动重新打开，并推出磁盘映像。");
     a.icon = [NSApp applicationIconImage];
-    [a addButtonWithTitle:@"安装"];
-    [a addButtonWithTitle:@"退出"];
+    [a addButtonWithTitle:GMTr(@"安装")];
+    [a addButtonWithTitle:GMTr(@"退出")];
     if ([a runModal] != NSAlertFirstButtonReturn) { exit(0); }
 
     GMSetupTakeOver();
@@ -300,8 +313,8 @@ BOOL GMSetupInstallIfNeeded(void){
     }
     if (!dest) {
         NSAlert *e = [NSAlert new];
-        e.messageText = @"没能安装";
-        e.informativeText = @"请把 App 手动拖到「应用程序」文件夹，再从那里打开。";
+        e.messageText = GMTr(@"没能安装");
+        e.informativeText = GMTr(@"请把 App 手动拖到「应用程序」文件夹，再从那里打开。");
         [e runModal];
         exit(1);
     }

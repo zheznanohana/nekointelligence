@@ -91,5 +91,11 @@
       ]
     }
   ],
-  "CFBundleIconFile": "AppIcon"
+  "CFBundleIconFile": "AppIcon",
+  "LSHasLocalizedDisplayName": true,
+  "CFBundleDevelopmentRegion": "zh_CN",
+  "CFBundleLocalizations": [
+    "zh-Hans",
+    "en"
+  ]
 }

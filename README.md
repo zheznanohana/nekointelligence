@@ -67,7 +67,7 @@
 
 1. Open the app and go to **Providers** (⌘,). Pick a preset or add your own Base URL, API key and model, click **Test Connection**, then **Save**.
 2. In any app, select some text and press **⌘9**. Choose an action in the panel, or type an instruction and press Return.
-3. For one-step edits without the panel, right-click the selection → **Services** → *直接改写 / 直接摘要 / 直接翻译 / 直接校对选中文字* (rewrite / summarize / translate / proofread; these menu names are currently Chinese only).
+3. For one-step edits without the panel, right-click the selection → **Services** → *Rewrite / Summarize / Translate / Proofread Selected Text*.
 
 | Shortcut | Action |
 | --- | --- |
@@ -78,7 +78,7 @@
 | ⌘1 – ⌘5 | Switch sidebar panes |
 | ⌃⌘S | Show or hide the sidebar |
 
-The app opens at login by default. Turn this off in **General**. The interface language (中文 / English) is also there.
+The app opens at login by default. Turn this off in **General**. The interface language (中文 / English) is also there. The Services menu and the app name in Finder follow your macOS language.
 
 ## FAQ
 
@@ -153,7 +153,6 @@ The repository contains **no Apple binaries**. At build time the script copies `
 - Instructions typed in the panel and the 8 preset actions apply only after the upstream reply (10–20 s in testing). There is no streaming.
 - API keys are stored in a file, not the Keychain.
 - ⌘9 can't be changed yet.
-- The English interface is incomplete. Some messages are still in Chinese.
 
 ## Acknowledgements
 

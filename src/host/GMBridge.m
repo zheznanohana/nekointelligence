@@ -12,6 +12,7 @@
 //   {"active":"qwen","providers":[{"id","name","base_url","chat_path","api_key","model","ips":[]}]}
 
 #import <Foundation/Foundation.h>
+#import "GMLang.h"
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/stat.h>
@@ -207,12 +208,12 @@ static NSData *httpsPost(NSString *host, NSArray *ips, NSString *path, NSString 
 #pragma mark - 一问一答
 
 static NSString *askProvider(NSDictionary *p, NSString *system, NSString *user, int maxTokens, NSString **errOut){
-    if (!p) { if (errOut) *errOut = @"没有可用的供应商配置"; return nil; }
+    if (!p) { if (errOut) *errOut = GMTr(@"没有可用的服务商配置"); return nil; }
     NSString *key = p[@"api_key"]; NSString *model = p[@"model"] ?: @"qwen3.8-flash";
     NSString *base = p[@"base_url"] ?: @"";
     NSString *path = p[@"chat_path"] ?: @"/v1/chat/completions";
     NSString *host = [[NSURL URLWithString:base] host] ?: base;
-    if (!key.length || !host.length) { if (errOut) *errOut = @"供应商配置不完整"; return nil; }
+    if (!key.length || !host.length) { if (errOut) *errOut = GMTr(@"服务商配置不完整"); return nil; }
 
     NSMutableArray *msgs = [NSMutableArray array];
     if (system.length) [msgs addObject:@{@"role":@"system", @"content":system}];
@@ -233,12 +234,12 @@ static NSString *askProvider(NSDictionary *p, NSString *system, NSString *user, 
     NSTimeInterval t0 = [NSDate timeIntervalSinceReferenceDate];
     NSData *resp = httpsPost(host, p[@"ips"], path, key, body, &status);
     NSTimeInterval dt = [NSDate timeIntervalSinceReferenceDate] - t0;
-    if (!resp) { if (errOut) *errOut = [NSString stringWithFormat:@"网络失败（%.1fs）", dt]; return nil; }
+    if (!resp) { if (errOut) *errOut = [NSString stringWithFormat:GMTr(@"网络失败（%.1f 秒）"), dt]; return nil; }
     NSDictionary *j = [NSJSONSerialization JSONObjectWithData:resp options:0 error:NULL];
     if (![j isKindOfClass:[NSDictionary class]]) {
         NSString *raw = [[NSString alloc] initWithData:resp encoding:NSUTF8StringEncoding];
         NSString *snip = raw.length > 80 ? [raw substringToIndex:80] : (raw ?: @"");
-        if (errOut) *errOut = [NSString stringWithFormat:@"响应不是 JSON（HTTP %ld）: %@", (long)status, snip];
+        if (errOut) *errOut = [NSString stringWithFormat:GMTr(@"响应不是 JSON（HTTP %ld）：%@"), (long)status, snip];
         return nil;
     }
     NSArray *choices = j[@"choices"];
@@ -253,7 +254,7 @@ static NSString *askProvider(NSDictionary *p, NSString *system, NSString *user, 
     }
     if (![text isKindOfClass:[NSString class]] || !text.length) {
         id e = j[@"error"];
-        if (errOut) *errOut = [NSString stringWithFormat:@"上游返回错误（HTTP %ld）: %@", (long)status,
+        if (errOut) *errOut = [NSString stringWithFormat:GMTr(@"服务商返回错误（HTTP %ld）：%@"), (long)status,
                                [e isKindOfClass:[NSDictionary class]] ? (e[@"message"] ?: e) : (e ?: j)];
         return nil;
     }
@@ -343,8 +344,8 @@ NSDictionary *GMBridgeActiveProvider(void){ return activeProvider(); }
 
 NSString *GMBridgeSummary(void){
     NSDictionary *p = activeProvider();
-    NSString *name = p[@"name"] ?: p[@"id"] ?: @"(未配置)";
-    return [NSString stringWithFormat:@"中继 已启动 · %@ · 当前供应商: %@ · socket %s", name, p[@"model"] ?: @"", GM_SOCK_PATH];
+    NSString *name = p[@"name"] ?: p[@"id"] ?: GMTr(@"未配置");
+    return [NSString stringWithFormat:GMTr(@"中继已启动 · %@ · %@ · socket %s"), name, p[@"model"] ?: @"", GM_SOCK_PATH];
 }
 
 static void migrateConfigIfNeeded(void){

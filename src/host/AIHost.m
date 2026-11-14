@@ -332,10 +332,10 @@ static NSString *SvcProofreadSystem(void){ return @"You are a proofreading engin
 
 - (void)svcInPlace:(NSPasteboard *)pb system:(NSString *)sys tag:(const char *)tag error:(NSString **)err {
     NSString *s=[pb stringForType:NSPasteboardTypeString];
-    if(!s.length){ if(err)*err=@"没有收到文本"; return; }
+    if(!s.length){ if(err)*err=GMTr(@"没有收到文本"); return; }
     NSDate *t0=[NSDate date];
     NSString *r=syncAsk(sys,s,25.0);
-    if(!r.length){ if(err)*err=@"千问代理没有响应（检查 doctor.sh）"; fprintf(stderr,"SERVICE_INPLACE %s FAILED\n",tag); return; }
+    if(!r.length){ if(err)*err=GMTr(@"服务商没有响应，请到「诊断」页运行自检"); fprintf(stderr,"SERVICE_INPLACE %s FAILED\n",tag); return; }
     [pb clearContents];
     [pb setString:r forType:NSPasteboardTypeString];
     fprintf(stderr,"SERVICE_INPLACE %s %lu -> %lu chars in %.2fs\n",tag,(unsigned long)s.length,(unsigned long)r.length,-[t0 timeIntervalSinceNow]);
@@ -349,17 +349,17 @@ static NSString *SvcProofreadSystem(void){ return @"You are a proofreading engin
 - (void)handleServiceProofreadInPlace:(NSPasteboard *)pb userData:(NSString *)ud error:(NSString **)err { [self svcInPlace:pb system:SvcProofreadSystem() tag:"proofread" error:err]; }
 - (void)handleServiceRewriteToClipboard:(NSPasteboard *)pb userData:(NSString *)ud error:(NSString **)err {
     NSString *s=[pb stringForType:NSPasteboardTypeString];
-    if(!s.length){ if(err)*err=@"没有收到文本"; return; }
+    if(!s.length){ if(err)*err=GMTr(@"没有收到文本"); return; }
     NSDate *t0=[NSDate date];
     NSString *r=syncAsk(SvcRewriteSystem(),s,25.0);
-    if(!r.length){ if(err)*err=@"千问代理没有响应（检查 doctor.sh）"; return; }
+    if(!r.length){ if(err)*err=GMTr(@"服务商没有响应，请到「诊断」页运行自检"); return; }
     NSPasteboard *g=[NSPasteboard generalPasteboard]; [g clearContents]; [g setString:r forType:NSPasteboardTypeString];
     fprintf(stderr,"SERVICE_COPY rewrite %lu -> %lu chars in %.2fs\n",(unsigned long)s.length,(unsigned long)r.length,-[t0 timeIntervalSinceNow]);
 }
 
 - (void)handleServiceText:(NSPasteboard *)pb userData:(NSString *)ud error:(NSString **)err {
     NSString *s = [pb stringForType:NSPasteboardTypeString];
-    if (!s.length) { if (err) *err = @"没有收到文本"; return; }
+    if (!s.length) { if (err) *err = GMTr(@"没有收到文本"); return; }
     markProgrammatic();
     [gTV setString:s];
     [gTV setSelectedRange:NSMakeRange(0, s.length)];

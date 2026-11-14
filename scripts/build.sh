@@ -95,6 +95,7 @@ cp "$HERE/scripts/doctor.sh" "$HERE/scripts/uninstall.sh" "$HERE/scripts/probe_l
 [ -f "$HERE/README.md" ] && cp "$HERE/README.md" "$APP/Contents/Resources/support/README.md"
 cp "$HERE/README.zh-CN.md" "$APP/Contents/Resources/support/使用说明.md" 2>/dev/null || true
 [ -f "$HERE/assets/AppIcon.icns" ] && cp "$HERE/assets/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
+cp -R "$HERE/resources/en.lproj" "$HERE/resources/zh-Hans.lproj" "$APP/Contents/Resources/"   # 服务菜单与 App 名的本地化
 printf '%s\n' "$APP" > "$APP/Contents/Resources/install-path.txt"
 [ -z "${APP_OUT:-}" ] && { mkdir -p "$SUP"; printf '%s\n' "$APP" > "$SUP/install-path.txt"; }
 
