@@ -28,6 +28,8 @@
 > NekoIntelligence requires **SIP and AMFI to be disabled**. It loads a patched copy of a system XPC service with private entitlements, which a stock, fully protected macOS will refuse to run. Only use it on a machine where you understand and accept that trade-off.
 
 > [!NOTE]
+> **For Intel Macs only.** Apple Silicon Macs already include Apple Intelligence and don't need this app.
+>
 > This is an unofficial project and is not affiliated with Apple. It modifies **no system files**: everything lives in one app in `/Applications` and in `~/Library/Application Support/AppleIntel`.
 
 ## Features
@@ -99,10 +101,6 @@ Then reopen the app and enable it again when prompted.
 ### Why do I need to disable SIP and AMFI?
 
 The panel comes from a copy of Apple's `WritingToolsViewService`. That copy is ad-hoc signed but needs Apple's private entitlements, and our libraries are injected into it with `DYLD_INSERT_LIBRARIES`. AMFI blocks both. Keep in mind that disabling AMFI also removes an important protection for the rest of the system.
-
-### Does it work on Apple Silicon?
-
-Probably not. The three patch offsets target the x86_64 slice only. You can look for the arm64 equivalents yourself with Ghidra or a similar tool.
 
 ### Are Image Playground, the new Siri, or the Apple Intelligence settings pane supported?
 

@@ -28,6 +28,8 @@
 > NekoIntelligence 需要**关闭 SIP 和 AMFI**。它会加载一份打过补丁、带私有 entitlements 的系统 XPC 服务副本，完整保护状态下的 macOS 会拒绝运行它。请只在你清楚并接受这个代价的机器上使用。
 
 > [!NOTE]
+> **只面向 Intel Mac。** Apple Silicon 的 Mac 自带 Apple 智能，不需要这个 App。
+>
 > 这是非官方项目，与 Apple 无关。它**不修改任何系统文件**：全部内容就是 `/Applications` 里的一个 App，加上 `~/Library/Application Support/AppleIntel` 这个目录。
 
 ## 功能
@@ -99,10 +101,6 @@ tccutil reset Accessibility com.local.appleintelligence.intel
 ### 为什么要关 SIP 和 AMFI？
 
 面板来自 Apple `WritingToolsViewService` 的一份副本。这份副本是 ad-hoc 签名，却需要 Apple 的私有 entitlements，而且要用 `DYLD_INSERT_LIBRARIES` 注入我们的库，这两件事都会被 AMFI 拦下。要注意，关掉 AMFI 也会让整个系统少一道重要的安全防护。
-
-### Apple Silicon 能用吗？
-
-大概率不行。三处补丁偏移只针对 x86_64 切片，你可以自己用 Ghidra 之类的工具去找 arm64 的对应位置。
 
 ### 支持 Image Playground、新 Siri、系统设置里的 Apple 智能面板吗？
 

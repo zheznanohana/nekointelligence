@@ -139,7 +139,7 @@ Apple 智能（Intel）— 非官方本地前端 + 自带 API 后端
 请在 系统设置 → 隐私与安全性 → 辅助功能 中勾选它。
 之后打开 App，在左侧「服务商」里填入你自己的 API Key（⌘, 直达）。
 
-要求：macOS 15+（本机 26.7 实测），Intel 优先（Apple Silicon 上补丁偏移不适用）；
+要求：Intel Mac，macOS 26.7.3 实测（Apple Silicon 的 Mac 自带 Apple 智能，不需要本软件）；
 需要关闭 SIP 与 AMFI（本方案会加载一份打过补丁的系统 XPC 服务副本）。
 TXT
   DMG="$DIST/Apple-Intelligence-Intel.dmg"
