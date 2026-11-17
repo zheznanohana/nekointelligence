@@ -29,9 +29,7 @@ def https_post(body: bytes, timeout=45):
     last = None
     for ip in IPS:
         try:
-            ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-            ctx.check_hostname = False
-            ctx.verify_mode = ssl.CERT_NONE
+            ctx = ssl.create_default_context()
             raw = socket.create_connection((ip, 443), timeout=timeout)
             s = ctx.wrap_socket(raw, server_hostname=HOST)
             hdr = (f"POST {PATH} HTTP/1.1\r\nHost: {HOST}\r\n"
@@ -156,7 +154,7 @@ def main():
     try: os.unlink(SOCK)
     except FileNotFoundError: pass
     srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    srv.bind(SOCK); os.chmod(SOCK, 0o777); srv.listen(16)
+    srv.bind(SOCK); os.chmod(SOCK, 0o600); srv.listen(16)
     lg("listening", SOCK, "model", MODEL)
     while True:
         c, _ = srv.accept()

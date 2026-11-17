@@ -32,16 +32,16 @@ static NSString *readUserInstruction(void) {
     if (!m || -[m timeIntervalSinceNow] > 600) return nil;
     NSString *s = [NSString stringWithContentsOfFile:@(path) encoding:NSUTF8StringEncoding error:NULL];
     s = [s stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
-    if (s.length) { [[NSFileManager defaultManager] removeItemAtPath:@(path) error:NULL]; return s; }
+    if (s.length) {
+        [[NSFileManager defaultManager] removeItemAtPath:@(path) error:NULL];
+        gInstrCache = s;
+        gInstrUntil = now + 15.0;
+        return s;
+    }
     return nil;
 }
 
 static NSString *qwenRaw(NSString *system, NSString *user) {
-    NSString *uinstr = nil;
-    if (uinstr.length) {
-        system = [NSString stringWithFormat:@"You are a text transformation engine inside the macOS Writing Tools panel. The user instruction is: %@. Apply that instruction to the provided text. Return ONLY the resulting text with no quotes, no preamble, no explanations.", uinstr];
-        lg(@"[vsstub] using user instruction (%lu chars)", (unsigned long)uinstr.length);
-    }
     const char *sockPath = getenv("VSSTUB_SOCK");
     if (!sockPath) sockPath = "/tmp/qwen.sock";
     int fd = socket(AF_UNIX, SOCK_STREAM, 0);
@@ -70,7 +70,7 @@ static NSString *qwenRaw(NSString *system, NSString *user) {
     close(fd);
     if (!acc.length) { lg(@"[vsstub] empty reply"); return nil; }
     NSDictionary *j = [NSJSONSerialization JSONObjectWithData:acc options:0 error:NULL];
-    if (![j[@"ok"] boolValue]) { lg(@"[vsstub] proxy err %@", j[@"err"]); return nil; }
+    if (![j[@"ok"] boolValue]) { lg(@"[vsstub] proxy err %@", j[@"error"] ?: j[@"err"]); return nil; }
     id t = j[@"text"];
     return [t isKindOfClass:[NSString class]] ? t : nil;
 }
@@ -221,24 +221,6 @@ static id makeReviewOutput(NSRange range, NSString *corrected, id options) {
     return nil;
 }
 
-static void captureWindows(NSString *tag) {
-    int i = 0;
-    for (NSWindow *w in [NSApp windows]) {
-        if (!w.isVisible) continue;
-        NSView *cv = w.contentView;
-        if (!cv) continue;
-        NSRect r = cv.bounds;
-        if (r.size.width < 40 || r.size.height < 40) continue;
-        NSBitmapImageRep *rep = [cv bitmapImageRepForCachingDisplayInRect:r];
-        if (!rep) continue;
-        [cv cacheDisplayInRect:r toBitmapImageRep:rep];
-        NSData *png = [rep representationUsingType:NSBitmapImageFileTypePNG properties:@{}];
-        NSString *path = [NSString stringWithFormat:@"/tmp/vsstub_%@_%d.png", tag, i++];
-        [png writeToFile:path atomically:YES];
-        lg(@"[vsstub] capture %@ %dx%d %lu bytes", path, (int)r.size.width, (int)r.size.height, (unsigned long)png.length);
-    }
-}
-
 static NSString *inputText(id input) {
     if (!input) return @"";
     if ([input isKindOfClass:[NSString class]]) return (NSString *)input;
@@ -269,11 +251,6 @@ static void stubRewriteString(id self, SEL _cmd, id str, NSRange range, id type,
         NSRange eff = range.length ? range : NSMakeRange(0, plain.length);
         q = fixBoundarySpacing(q, plain, eff);
         callReply(reply, makeOutputWithRange(plain, q, eff, options), nil);
-        for (double d = 0.3; d <= 6.0; d += 1.4) {
-            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(d * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-                captureWindows([NSString stringWithFormat:@"rw_%.1f", d]);
-            });
-        }
     });
 }
 
@@ -295,11 +272,6 @@ static void stubReviewString(id self, SEL _cmd, id str, NSRange range, id option
         id out = makeReviewOutput(r, q, options);
         lg(@"[vsstub] reply review out=%s", out ? class_getName([out class]) : "(nil)");
         callReply(reply, out, nil);
-        for (double d = 0.3; d <= 6.0; d += 1.4) {
-            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(d * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-                captureWindows([NSString stringWithFormat:@"rv_%.1f", d]);
-            });
-        }
     });
 }
 

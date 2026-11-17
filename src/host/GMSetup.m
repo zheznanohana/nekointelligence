@@ -47,9 +47,7 @@ static void copyTree(NSString *src, NSString *dst){
         BOOL isDir = NO;
         [fm fileExistsAtPath:s isDirectory:&isDir];
         if (isDir) { copyTree(s, d); continue; }
-        NSDictionary *sa = [fm attributesOfItemAtPath:s error:NULL];
-        NSDictionary *da = [fm attributesOfItemAtPath:d error:NULL];
-        if (da && [da[NSFileSize] isEqual:sa[NSFileSize]]) continue;   // 已有同名同大小文件，跳过
+        if ([fm contentsEqualAtPath:s andPath:d]) continue;
         [fm removeItemAtPath:d error:NULL];
         [fm copyItemAtPath:s toPath:d error:NULL];
     }
@@ -66,32 +64,23 @@ static BOOL ensureXPCConfig(NSString *appPath, NSArray<NSString*> *dylibs){
     NSMutableDictionary *env = [svc[@"EnvironmentVariables"] mutableCopy];
     if (!env) env = [NSMutableDictionary dictionary];
     NSString *chain = [dylibs componentsJoinedByString:@":"];
-    NSMutableArray *logs = [NSMutableArray array];
-    [logs addObject:@"GMAX_LABEL=__none__"];
-    [logs addObject:@"GMAX_LOG=/tmp/gmax6.log"];
-    [logs addObject:@"VSSTUB_LOG=/tmp/bridge/vsstub.log"];
-    [logs addObject:@"VSSTUB_INSTR_FILE=/tmp/bridge/instruction.txt"];
-    [logs addObject:@"GMHOOK_LOG=/tmp/gmhook_vs.log"];
-    [logs addObject:@"GMVS_LOG=/tmp/gmvs_vs.log"];
-    [logs addObject:@"GMPREF_LOG=/tmp/gmpref.log"];
-    NSString *want = [NSString stringWithFormat:@"%@\n%@", chain, [logs componentsJoinedByString:@"\n"]];
-    NSString *have = [NSString stringWithFormat:@"%@\n%@", env[@"DYLD_INSERT_LIBRARIES"] ?: @"",
-                      [@[@"GMAX_LABEL", @"GMAX_LOG", @"VSSTUB_LOG", @"VSSTUB_INSTR_FILE", @"GMHOOK_LOG", @"GMVS_LOG", @"GMPREF_LOG"]
-                        componentsJoinedByString:@"\n"]];
-    BOOL changed = ![env[@"DYLD_INSERT_LIBRARIES"] isEqual:chain];
-    env[@"DYLD_INSERT_LIBRARIES"] = chain;
-    env[@"GMAX_LABEL"] = @"__none__";
-    env[@"GMAX_LOG"] = @"/tmp/gmax6.log";
-    env[@"VSSTUB_LOG"] = @"/tmp/bridge/vsstub.log";
-    env[@"VSSTUB_INSTR_FILE"] = @"/tmp/bridge/instruction.txt";
-    env[@"GMHOOK_LOG"] = @"/tmp/gmhook_vs.log";
-    env[@"GMVS_LOG"] = @"/tmp/gmvs_vs.log";
-    env[@"GMPREF_LOG"] = @"/tmp/gmpref.log";
+    NSDictionary *desired = @{
+        @"DYLD_INSERT_LIBRARIES": chain,
+        @"GMAX_LABEL": @"__none__",
+        @"VSSTUB_INSTR_FILE": @"/tmp/bridge/instruction.txt",
+    };
+    NSArray *staleLogKeys = @[@"GMAX_LOG", @"VSSTUB_LOG", @"GMHOOK_LOG", @"GMVS_LOG", @"GMPREF_LOG"];
+    BOOL changed = NO;
+    for (NSString *k in desired) {
+        if (![env[k] isEqual:desired[k]]) { changed = YES; env[k] = desired[k]; }
+    }
+    for (NSString *k in staleLogKeys) {
+        if (env[k] != nil) { changed = YES; [env removeObjectForKey:k]; }
+    }
     svc[@"EnvironmentVariables"] = env;
     pl[@"XPCService"] = svc;
     if (!changed) return NO;
     if (![pl writeToFile:plistPath atomically:YES]) { slog(@"写 XPC plist 失败"); return NO; }
-    (void)want; (void)have;
     return YES;
 }
 
@@ -104,7 +93,8 @@ void GMSetupEnsure(void){
         NSString *res = [app stringByAppendingPathComponent:@"Contents/Resources"];
         [fm createDirectoryAtPath:SUSupport() withIntermediateDirectories:YES attributes:nil error:NULL];
         [fm createDirectoryAtPath:SUAI() withIntermediateDirectories:YES attributes:nil error:NULL];
-        [fm createDirectoryAtPath:@"/tmp/bridge" withIntermediateDirectories:YES attributes:nil error:NULL];
+        [fm createDirectoryAtPath:@"/tmp/bridge" withIntermediateDirectories:YES attributes:@{NSFilePosixPermissions:@(0700)} error:NULL];
+        chmod("/tmp/bridge", 0700);
 
         // 1) 支持文件（脚本/entitlements/说明）复制到固定位置，供自检与重签使用
         NSString *supportSrc = [res stringByAppendingPathComponent:@"support"];
@@ -117,9 +107,7 @@ void GMSetupEnsure(void){
                 if (![name hasSuffix:@".dylib"]) continue;
                 NSString *s = [aiSrc stringByAppendingPathComponent:name];
                 NSString *d = [SUAI() stringByAppendingPathComponent:name];
-                NSDictionary *sa = [fm attributesOfItemAtPath:s error:NULL];
-                NSDictionary *da = [fm attributesOfItemAtPath:d error:NULL];
-                if (!da || ![da[NSFileSize] isEqual:sa[NSFileSize]]) {
+                if (![fm contentsEqualAtPath:s andPath:d]) {
                     [fm removeItemAtPath:d error:NULL];
                     [fm copyItemAtPath:s toPath:d error:NULL];
                     slog(@"更新 dylib %@", name);

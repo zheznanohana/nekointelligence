@@ -23,33 +23,6 @@ static BOOL StatusYes(id s, SEL c, long long *st) { if (st) *st = 0; return YES;
 static BOOL StatusYes2(id s, SEL c, id a, long long *st) { if (st) *st = 0; return YES; }
 static BOOL No12(id s, SEL c, id a, id b) { return NO; }
 
-
-// ---- self screenshot of the ViewService's own windows ----
-static void saveWin(NSWindow *w, NSString *path) {
-    NSView *v = [w contentView];
-    if (!v) return;
-    NSRect r = [v bounds];
-    if (r.size.width < 2 || r.size.height < 2) return;
-    NSBitmapImageRep *rep = [v bitmapImageRepForCachingDisplayInRect:r];
-    if (!rep) return;
-    [v cacheDisplayInRect:r toBitmapImageRep:rep];
-    NSData *png = [rep representationUsingType:NSBitmapImageFileTypePNG properties:@{}];
-    [png writeToFile:path atomically:YES];
-    L(@"[gmvs] captured %@ %@ %.0fx%.0f bytes=%lu", path, NSStringFromClass([w class]),
-      r.size.width, r.size.height, (unsigned long)png.length);
-}
-static void captureAll(int tag) {
-    int i = 0;
-    for (NSWindow *w in [NSApp windows]) {
-        L(@"[gmvs] win[%d] %@ vis=%d key=%d frame=%@", i, NSStringFromClass([w class]),
-          (int)[w isVisible], (int)[w isKeyWindow], NSStringFromRect([w frame]));
-        if ([w isVisible]) {
-            saveWin(w, [NSString stringWithFormat:@"/tmp/vs_cap_%d_%d.png", tag, i]);
-        }
-        i++;
-    }
-}
-
 static int gPass = 0;
 static void hookCls(Class C, const char *sel, IMP imp, const char *tag) {
     if (!C) return;
@@ -95,12 +68,9 @@ static void doHook(void) {
 
 __attribute__((constructor)) static void init(void) {
     const char *p = getenv("GMVS_LOG");
-    gF = fopen(p ? p : "/tmp/gmvs.log", "a");
+    if (p && *p) gF = fopen(p, "a");
     char nm[256] = {0}; extern int proc_name(int,char*,unsigned); proc_name(getpid(), nm, sizeof(nm));
     L(@"[gmvs] loaded pid=%d proc=%s", getpid(), nm);
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 200*NSEC_PER_MSEC), dispatch_get_main_queue(), ^{ doHook(); });
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 800*NSEC_PER_MSEC), dispatch_get_main_queue(), ^{ doHook(); });
-    for (int t = 1; t <= 4; t++) {
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(t*1.2*NSEC_PER_SEC)), dispatch_get_main_queue(), ^{ captureAll(t); });
-    }
 }

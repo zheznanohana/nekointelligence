@@ -68,12 +68,17 @@ fi
 # 9 供应商配置
 if [ -f "$SUP/providers.json" ]; then
   if python3 - "$SUP/providers.json" <<'PY'
-import json,sys
+import json,sys,urllib.parse
 d=json.load(open(sys.argv[1]))
 ps=d.get("providers") or []
 a=d.get("active")
 sel=[p for p in ps if p.get("id")==a] or ps
-sys.exit(0 if sel and sel[0].get("api_key") and sel[0].get("base_url") else 1)
+if not sel:
+    sys.exit(1)
+base=sel[0].get("base_url") or ""
+host=(urllib.parse.urlparse(base).hostname or "").lower()
+loopback=host in ("localhost", "127.0.0.1", "::1") or host.startswith("127.")
+sys.exit(0 if base and (sel[0].get("api_key") or loopback) else 1)
 PY
   then ok "$(T "供应商配置完整" "Provider configuration complete")"; else bad "$(T "供应商配置缺少 Key 或 Base URL（打开 App → 侧边栏「服务商」里填）" "Provider is missing an API key or Base URL (open the app → Providers)")"; fi
 else bad "$(T "还没有 providers.json（打开 App → 侧边栏「服务商」里添加）" "No providers.json yet (open the app → Providers to add one)")"; fi

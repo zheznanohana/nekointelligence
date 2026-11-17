@@ -272,7 +272,13 @@ static void openFromClipboard(void){
 
 static EventHandlerRef gHKHandler; static EventHotKeyRef gHKRef; static EventHotKeyRef gHKRef2;
 static OSStatus hkCallback(EventHandlerCallRef next, EventRef ev, void *ud){
-    dispatch_async(dispatch_get_main_queue(), ^{ grabAndOpen(); });
+    (void)next; (void)ud;
+    EventHotKeyID hk = {0, 0};
+    GetEventParameter(ev, kEventParamDirectObject, typeEventHotKeyID, NULL, sizeof(hk), NULL, &hk);
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (hk.id == 2) openFromClipboard();
+        else grabAndOpen();
+    });
     return noErr;
 }
 static void installHotkey(void){

@@ -170,7 +170,7 @@ static void postClickLabel(NSString *label) {
     L(@"TESTCLICK %@ not found", label);
 }
 
-static void ensureDir(void){ mkdir("/tmp/bridge",0777); }
+static void ensureDir(void){ mkdir("/tmp/bridge",0700); chmod("/tmp/bridge",0700); }
 __attribute__((constructor)) static void gmt2Init(void) {
     ensureDir();
     const char *lp=getenv("GMT2_LOG"); if(lp) gF=fopen(lp,"a");

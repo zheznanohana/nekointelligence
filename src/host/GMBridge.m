@@ -100,29 +100,61 @@ static OSStatus tlsWrite(SSLConnectionRef conn, const void *data, size_t *len){
 }
 static int tcpConnectHost(const char *host, int port){
     struct addrinfo hints = {0}, *res = NULL;
-    hints.ai_family = AF_INET; hints.ai_socktype = SOCK_STREAM;
-    char ps[8]; snprintf(ps, sizeof ps, "%d", port);
+    hints.ai_family = AF_UNSPEC; hints.ai_socktype = SOCK_STREAM;
+    char ps[16]; snprintf(ps, sizeof ps, "%d", port);
     if (getaddrinfo(host, ps, &hints, &res) != 0) return -3;
-    int fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (fd < 0) { freeaddrinfo(res); return -1; }
+    int fd = -2;
     struct timeval tv = {30, 0};
-    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof tv);
-    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof tv);
-    int rc = connect(fd, res->ai_addr, res->ai_addrlen);
+    for (struct addrinfo *ai = res; ai; ai = ai->ai_next) {
+        int s = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+        if (s < 0) continue;
+        setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof tv);
+        setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof tv);
+        if (connect(s, ai->ai_addr, ai->ai_addrlen) == 0) { fd = s; break; }
+        close(s);
+    }
     freeaddrinfo(res);
-    if (rc != 0) { close(fd); return -2; }
     return fd;
 }
 static int tcpConnectIP(const char *ip, int port){
-    int fd = socket(AF_INET, SOCK_STREAM, 0); if (fd < 0) return -1;
+    if (!ip || !*ip) return -1;
     struct timeval tv = {30, 0};
-    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof tv);
-    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof tv);
-    struct sockaddr_in sa; memset(&sa, 0, sizeof sa);
-    sa.sin_family = AF_INET; sa.sin_port = htons(port);
-    inet_pton(AF_INET, ip, &sa.sin_addr);
-    if (connect(fd, (struct sockaddr*)&sa, sizeof sa) != 0) { close(fd); return -2; }
-    return fd;
+    struct in_addr v4;
+    if (inet_pton(AF_INET, ip, &v4) == 1) {
+        int fd = socket(AF_INET, SOCK_STREAM, 0); if (fd < 0) return -1;
+        setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof tv);
+        setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof tv);
+        struct sockaddr_in sa; memset(&sa, 0, sizeof sa);
+        sa.sin_family = AF_INET; sa.sin_port = htons(port); sa.sin_addr = v4;
+        if (connect(fd, (struct sockaddr*)&sa, sizeof sa) == 0) return fd;
+        close(fd); return -2;
+    }
+    struct in6_addr v6;
+    if (inet_pton(AF_INET6, ip, &v6) == 1) {
+        int fd = socket(AF_INET6, SOCK_STREAM, 0); if (fd < 0) return -1;
+        setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof tv);
+        setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof tv);
+        struct sockaddr_in6 sa6; memset(&sa6, 0, sizeof sa6);
+        sa6.sin6_family = AF_INET6; sa6.sin6_port = htons(port); sa6.sin6_addr = v6;
+        if (connect(fd, (struct sockaddr*)&sa6, sizeof sa6) == 0) return fd;
+        close(fd); return -2;
+    }
+    return -1;
+}
+
+static BOOL isLoopbackHost(NSString *host){
+    NSString *h = [host.lowercaseString stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"[]"]];
+    return [h isEqualToString:@"localhost"] || [h isEqualToString:@"::1"] || [h isEqualToString:@"127.0.0.1"] || [h hasPrefix:@"127."];
+}
+
+static BOOL writeAllFD(int fd, const uint8_t *p, size_t len){
+    size_t sent = 0;
+    while (sent < len) {
+        ssize_t n = write(fd, p + sent, len - sent);
+        if (n <= 0) return NO;
+        sent += (size_t)n;
+    }
+    return YES;
 }
 
 static NSData *unchunk(NSData *body){
@@ -152,47 +184,103 @@ static NSData *unchunk(NSData *body){
     return out.length ? out : rest;
 }
 
-static NSData *httpsPost(NSString *host, NSArray *ips, NSString *path, NSString *key, NSData *body, NSInteger *statusOut){
-    int fd = tcpConnectHost(host.UTF8String, 443);
-    if (fd < 0 && ips.count) {
-        for (NSString *ip in ips) { fd = tcpConnectIP(ip.UTF8String, 443); if (fd >= 0) break; }
+static NSData *httpPost(BOOL useTLS, NSString *host, int port, NSArray *ips, NSString *path, NSString *key, NSData *body, NSInteger *statusOut, NSString **errOut){
+    NSString *connectHost = host;
+    if ([connectHost hasPrefix:@"["] && [connectHost hasSuffix:@"]"] && connectHost.length > 2)
+        connectHost = [connectHost substringWithRange:NSMakeRange(1, connectHost.length - 2)];
+    int fd = tcpConnectHost(connectHost.UTF8String, port);
+    if (fd < 0 && [ips isKindOfClass:[NSArray class]] && ips.count) {
+        for (NSString *ip in ips) { fd = tcpConnectIP(ip.UTF8String, port); if (fd >= 0) break; }
     }
-    if (fd < 0) { bridgeLog(@"[bridge] connect failed %@", host); return nil; }
-    tlsConn conn = { fd };
-    SSLContextRef ctx = SSLCreateContext(NULL, kSSLClientSide, kSSLStreamType);
-    SSLSetIOFuncs(ctx, tlsRead, tlsWrite);
-    SSLSetConnection(ctx, (SSLConnectionRef)&conn);
-    SSLSetPeerDomainName(ctx, host.UTF8String, strlen(host.UTF8String));
-    SSLSetSessionOption(ctx, kSSLSessionOptionBreakOnServerAuth, true);
-    OSStatus st = errSSLWouldBlock;
-    for (int i = 0; i < 12; i++) {
-        st = SSLHandshake(ctx);
-        if (st == errSSLWouldBlock || st == errSSLServerAuthCompleted) continue;
-        break;
+    if (fd < 0) {
+        bridgeLog(@"[bridge] connect failed %@:%d", host, port);
+        if (errOut) *errOut = [NSString stringWithFormat:GMTr(@"无法连接到 %@:%d"), host, port];
+        return nil;
     }
-    if (st != noErr && st != errSSLServerAuthCompleted) {
-        bridgeLog(@"[bridge] TLS handshake %d host=%@", (int)st, host);
-        close(fd); CFRelease(ctx); return nil;
-    }
+
+    NSString *hostHdr = ([connectHost containsString:@":"] && ![host hasPrefix:@"["])
+        ? [NSString stringWithFormat:@"[%@]", connectHost] : host;
+    if ((useTLS && port != 443) || (!useTLS && port != 80))
+        hostHdr = [NSString stringWithFormat:@"%@:%d", hostHdr, port];
+
     NSMutableString *req = [NSMutableString stringWithFormat:
-        @"POST %@ HTTP/1.1\r\nHost: %@\r\nAuthorization: Bearer %@\r\n"
-         "Content-Type: application/json\r\nContent-Length: %lu\r\nConnection: close\r\n\r\n",
-        path, host, key, (unsigned long)body.length];
+        @"POST %@ HTTP/1.1\r\nHost: %@\r\n", path, hostHdr];
+    if (key.length) [req appendFormat:@"Authorization: Bearer %@\r\n", key];
+    [req appendFormat:@"Content-Type: application/json\r\nContent-Length: %lu\r\nConnection: close\r\n\r\n",
+        (unsigned long)body.length];
     NSMutableData *reqD = [[req dataUsingEncoding:NSUTF8StringEncoding] mutableCopy];
     [reqD appendData:body];
-    size_t wrote = 0;
-    OSStatus wr = SSLWrite(ctx, reqD.bytes, reqD.length, &wrote);
-    if (wr != noErr && wr != errSSLWouldBlock) { bridgeLog(@"[bridge] SSLWrite %d", (int)wr); }
-    NSMutableData *resp = [NSMutableData data]; char buf[16384];
-    while (1) {
-        size_t got = 0;
-        OSStatus r = SSLRead(ctx, buf, sizeof buf, &got);
-        if (got) [resp appendBytes:buf length:got];
-        if (r == errSSLWouldBlock) continue;
-        if (r != noErr && r != errSSLClosedGraceful) break;
-        if (got == 0) break;
+
+    NSMutableData *resp = [NSMutableData data];
+    char buf[16384];
+    if (useTLS) {
+        tlsConn conn = { fd };
+        SSLContextRef ctx = SSLCreateContext(NULL, kSSLClientSide, kSSLStreamType);
+        SSLSetIOFuncs(ctx, tlsRead, tlsWrite);
+        SSLSetConnection(ctx, (SSLConnectionRef)&conn);
+        SSLSetPeerDomainName(ctx, connectHost.UTF8String, strlen(connectHost.UTF8String));
+        SSLSetSessionOption(ctx, kSSLSessionOptionBreakOnServerAuth, true);
+        OSStatus st = errSSLWouldBlock;
+        BOOL trustChecked = NO;
+        for (int i = 0; i < 32; i++) {
+            st = SSLHandshake(ctx);
+            if (st == errSSLWouldBlock) continue;
+            if (st == errSSLServerAuthCompleted) {
+                SecTrustRef trust = NULL;
+                OSStatus tr = SSLCopyPeerTrust(ctx, &trust);
+                CFErrorRef trustErr = NULL;
+                bool trusted = (tr == noErr && trust && SecTrustEvaluateWithError(trust, &trustErr));
+                if (!trusted) {
+                    NSString *reason = trustErr ? ((__bridge NSError *)trustErr).localizedDescription : GMTr(@"证书校验失败");
+                    bridgeLog(@"[bridge] TLS certificate rejected for %@:%d (%@)", host, port, reason);
+                    if (errOut) *errOut = [NSString stringWithFormat:GMTr(@"TLS 证书校验失败：%@"), reason];
+                    if (trustErr) CFRelease(trustErr);
+                    if (trust) CFRelease(trust);
+                    close(fd); CFRelease(ctx); return nil;
+                }
+                if (trustErr) CFRelease(trustErr);
+                if (trust) CFRelease(trust);
+                trustChecked = YES;
+                continue;
+            }
+            break;
+        }
+        if (st != noErr || !trustChecked) {
+            bridgeLog(@"[bridge] TLS handshake %d trusted=%d host=%@:%d", (int)st, (int)trustChecked, host, port);
+            if (errOut && !*errOut) *errOut = [NSString stringWithFormat:GMTr(@"TLS 握手失败 (%d)"), (int)st];
+            close(fd); CFRelease(ctx); return nil;
+        }
+        const uint8_t *p = reqD.bytes; size_t left = reqD.length;
+        while (left > 0) {
+            size_t wrote = 0;
+            OSStatus wr = SSLWrite(ctx, p, left, &wrote);
+            if (wrote > 0) { p += wrote; left -= wrote; }
+            if (wr == errSSLWouldBlock) continue;
+            if (wr != noErr) { bridgeLog(@"[bridge] SSLWrite %d", (int)wr); break; }
+        }
+        while (1) {
+            size_t got = 0;
+            OSStatus r = SSLRead(ctx, buf, sizeof buf, &got);
+            if (got) [resp appendBytes:buf length:got];
+            if (r == errSSLWouldBlock) continue;
+            if (r != noErr && r != errSSLClosedGraceful) break;
+            if (got == 0) break;
+        }
+        SSLClose(ctx); CFRelease(ctx); close(fd);
+    } else {
+        if (!writeAllFD(fd, reqD.bytes, reqD.length)) {
+            bridgeLog(@"[bridge] write failed %@:%d errno=%d", host, port, errno);
+            if (errOut) *errOut = GMTr(@"发送请求失败");
+            close(fd); return nil;
+        }
+        while (1) {
+            ssize_t got = read(fd, buf, sizeof buf);
+            if (got > 0) [resp appendBytes:buf length:(NSUInteger)got];
+            else break;
+        }
+        close(fd);
     }
-    SSLClose(ctx); CFRelease(ctx); close(fd);
+
     if (statusOut) {
         NSData *m = [@"\r\n\r\n" dataUsingEncoding:NSUTF8StringEncoding];
         NSRange hr = [resp rangeOfData:m options:0 range:NSMakeRange(0, resp.length)];
@@ -209,11 +297,34 @@ static NSData *httpsPost(NSString *host, NSArray *ips, NSString *path, NSString 
 
 static NSString *askProvider(NSDictionary *p, NSString *system, NSString *user, int maxTokens, NSString **errOut){
     if (!p) { if (errOut) *errOut = GMTr(@"没有可用的服务商配置"); return nil; }
-    NSString *key = p[@"api_key"]; NSString *model = p[@"model"] ?: @"qwen3.8-flash";
-    NSString *base = p[@"base_url"] ?: @"";
-    NSString *path = p[@"chat_path"] ?: @"/v1/chat/completions";
-    NSString *host = [[NSURL URLWithString:base] host] ?: base;
-    if (!key.length || !host.length) { if (errOut) *errOut = GMTr(@"服务商配置不完整"); return nil; }
+    NSString *key = p[@"api_key"] ?: @""; NSString *model = p[@"model"] ?: @"qwen3.8-flash";
+    NSString *base = [[p[@"base_url"] ?: @"" stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]] copy];
+    NSString *path = [[p[@"chat_path"] ?: @"/v1/chat/completions" stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]] copy];
+    if (![base containsString:@"://"] && base.length) base = [@"https://" stringByAppendingString:base];
+    NSURLComponents *uc = [NSURLComponents componentsWithString:base];
+    NSString *scheme = uc.scheme.lowercaseString ?: @"https";
+    if (![scheme isEqualToString:@"http"] && ![scheme isEqualToString:@"https"]) {
+        if (errOut) *errOut = GMTr(@"Base URL 需以 http:// 或 https:// 开头");
+        return nil;
+    }
+    BOOL useTLS = [scheme isEqualToString:@"https"];
+    NSString *host = uc.host ?: @"";
+    int port = uc.port ? uc.port.intValue : (useTLS ? 443 : 80);
+    if (!host.length || (!key.length && !isLoopbackHost(host))) {
+        if (errOut) *errOut = GMTr(@"服务商配置不完整");
+        return nil;
+    }
+    if (!path.length) path = @"/v1/chat/completions";
+    if (![path hasPrefix:@"/"]) path = [@"/" stringByAppendingString:path];
+    NSString *basePath = uc.percentEncodedPath ?: @"";
+    while ([basePath hasSuffix:@"/"]) basePath = [basePath substringToIndex:basePath.length - 1];
+    if (basePath.length) {
+        if ([basePath hasSuffix:@"/v1"] && [path hasPrefix:@"/v1/"]) {
+            path = [basePath stringByAppendingString:[path substringFromIndex:3]];
+        } else if (![path isEqualToString:basePath] && ![path hasPrefix:[basePath stringByAppendingString:@"/"]]) {
+            path = [basePath stringByAppendingString:path];
+        }
+    }
 
     NSMutableArray *msgs = [NSMutableArray array];
     if (system.length) [msgs addObject:@{@"role":@"system", @"content":system}];
@@ -231,10 +342,11 @@ static NSString *askProvider(NSDictionary *p, NSString *system, NSString *user, 
     }
     NSData *body = [NSJSONSerialization dataWithJSONObject:payload options:0 error:NULL];
     NSInteger status = 0;
+    NSString *netErr = nil;
     NSTimeInterval t0 = [NSDate timeIntervalSinceReferenceDate];
-    NSData *resp = httpsPost(host, p[@"ips"], path, key, body, &status);
+    NSData *resp = httpPost(useTLS, host, port, p[@"ips"], path, key, body, &status, &netErr);
     NSTimeInterval dt = [NSDate timeIntervalSinceReferenceDate] - t0;
-    if (!resp) { if (errOut) *errOut = [NSString stringWithFormat:GMTr(@"网络失败（%.1f 秒）"), dt]; return nil; }
+    if (!resp) { if (errOut) *errOut = netErr ?: [NSString stringWithFormat:GMTr(@"网络失败（%.1f 秒）"), dt]; return nil; }
     NSDictionary *j = [NSJSONSerialization JSONObjectWithData:resp options:0 error:NULL];
     if (![j isKindOfClass:[NSDictionary class]]) {
         NSString *raw = [[NSString alloc] initWithData:resp encoding:NSUTF8StringEncoding];
@@ -319,11 +431,14 @@ static void *acceptThread(void *arg){
     struct sockaddr_un a; memset(&a, 0, sizeof a);
     a.sun_family = AF_UNIX;
     strncpy(a.sun_path, sp.UTF8String, sizeof(a.sun_path) - 1);
-    if (bind(lfd, (struct sockaddr*)&a, sizeof a) != 0) {
+    mode_t oldMask = umask(0077);
+    int bindRc = bind(lfd, (struct sockaddr*)&a, sizeof a);
+    umask(oldMask);
+    if (bindRc != 0) {
         bridgeLog(@"[bridge] bind %@ failed errno=%d", sp, errno);
         close(lfd); return NULL;
     }
-    chmod(sp.UTF8String, 0777);
+    chmod(sp.UTF8String, 0600);
     listen(lfd, 32);
     bridgeLog(@"[bridge] listening %@ (built-in relay)", sp);
     while (1) {

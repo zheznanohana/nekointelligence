@@ -31,15 +31,22 @@ static NSData *httpsPost(NSString *host, NSString *ip, NSString *path, NSString 
     SSLSetConnection(ctx, &fd);
     SSLSetPeerDomainName(ctx, [host UTF8String], strlen([host UTF8String]));
     SSLSetSessionOption(ctx, kSSLSessionOptionBreakOnServerAuth, true);
-    OSStatus st;
-    for(int i=0;i<8;i++){
+    OSStatus st = errSSLWouldBlock;
+    BOOL trusted = NO;
+    for(int i=0;i<32;i++){
         st = SSLHandshake(ctx);
         if(st==errSSLWouldBlock) continue;
-        if(st==errSSLServerAuthCompleted) continue;
+        if(st==errSSLServerAuthCompleted){
+            SecTrustRef trust=NULL;
+            if(SSLCopyPeerTrust(ctx,&trust)==noErr && trust && SecTrustEvaluateWithError(trust,NULL)) trusted=YES;
+            if(trust) CFRelease(trust);
+            if(!trusted){ fprintf(stderr,"TLS trust failed\n"); close(fd); CFRelease(ctx); return nil; }
+            continue;
+        }
         break;
     }
-    fprintf(stderr,"handshake=%d\n",(int)st);
-    if(st!=noErr && st!=errSSLServerAuthCompleted){ close(fd); CFRelease(ctx); return nil; }
+    fprintf(stderr,"handshake=%d trusted=%d\n",(int)st,(int)trusted);
+    if(st!=noErr || !trusted){ close(fd); CFRelease(ctx); return nil; }
     NSMutableString *req = [NSMutableString stringWithFormat:
         @"POST %@ HTTP/1.1\r\nHost: %@\r\nAuthorization: Bearer %@\r\nContent-Type: application/json\r\nContent-Length: %lu\r\nConnection: close\r\n\r\n",
         path, host, apiKey, (unsigned long)body.length];
